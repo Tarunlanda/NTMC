@@ -1,136 +1,214 @@
-from qiskit import QuantumCircuit, execute, BasicAer, QuantumRegister, ClassicalRegister
-import numpy as np
+import random
+from qiskit import QuantumCircuit, BasicAer, execute, ClassicalRegister
 
-# Function for the minimum operation
-def minimum_operation(a, b):
-    # Perform exclusive-OR operations with 1
-    a_bar = a ^ 1
-    b_bar = b ^ 1
+def bitwise_magnitude_comparison(a, b):
+    # Make sure both a and b have the same length
+    if len(a) != len(b):
+        if(len(a)>len(b)):
+          return "Alice > Bob"
+        else:
+          return "Alice < Bob"
+    # Perform XOR and minimum operations for each bit position
+    for i in range(len(a)):
+        a_xor = int(a[i]) ^ 1
+        b_xor = int(b[i]) ^ 1
+        g = int(a[i]) & b_xor
+        l = int(b[i]) & a_xor
 
-    # Perform the minimum operation
-    g = a_bar & b
-    l = b_bar & a
+        # Check the results
+        if g == 1 and l != 1:
+            return "Alice > Bob"
+        elif l == 1 and g != 1:
+            return "Alice < Bob"
 
-    # Determine the relationship based on the result
-    if g:
-        return "A > B"
-    elif l:
-        return "A < B"
-    else:
-        return "A = B"
+    # If no inequality is found, return "a = b"
+    return "Alice = Bob"
 
-# Step 0: Key Generation
-def generate_shared_key(N):
-    # Generate random key sequence
-    return ''.join(np.random.choice(['0', '1']) for _ in range(N))
+def generate_random_binary(n):
+    binary_number = ''.join([str(random.randint(0, 1)) for _ in range(n)])
+    return binary_number
 
-# Step 1: Bell State Generation and Photon Insertion
-def generate_bell_states(N):
-    qr = QuantumRegister(2*N)
-    qc = QuantumCircuit(qr)
-    for qubit in range(N):
-        qc.h(qubit)
-        qc.cx(qubit, qubit+N)
-    return qc
+def generate_random_bell_circuits(N):
+    bell_circuits = []
+    for _ in range(N):
+        qc = QuantumCircuit(2,2)
+        qc.h(0)
+        # Apply a CNOT gate with the first qubit as control and the second qubit as target
+        if random.choice([True, False]):
+            qc.cx(0, 1)  # Apply a CNOT gate
+            
+            # print('1',qc.draw())
+        else:
+            qc.x(1)      # Apply X gate to flip the target qubit
+            qc.cx(0, 1)  # Apply a CNOT gate
+            # print('2',qc.draw())
+        bell_circuits.append(qc)
+    return bell_circuits
 
-def insert_decoy_photons(qc, N):
-    cr = ClassicalRegister(N)  # Create a classical register with N bits
-    qc.add_register(cr)  # Add the classical register to the quantum circuit
-    # Insert decoy photons
-    for qubit in range(N):
-        decoy = np.random.choice(['0', '1', '+', '-'])
-        if decoy == '0':
-            qc.measure(qubit, qubit)
-        elif decoy == '1':
-            qc.x(qubit)
-            qc.measure(qubit, qubit)
-        elif decoy == '+':
-            qc.h(qubit)
-            qc.measure(qubit, qubit)
-        elif decoy == '-':
-            qc.x(qubit)
-            qc.h(qubit)
-            qc.measure(qubit, qubit)
-    return qc
+def divide_bell_circuits(bell_circuits):
+    midpoint = len(bell_circuits) // 2
+    sequence1 = bell_circuits[:midpoint]
+    sequence2 = bell_circuits[midpoint:]
+    # sequence1 = generate_random_bell_circuits(midpoint)
+    # sequence2 = generate_random_bell_circuits(midpoint)
+    return sequence1, sequence2
 
-# Step 3: Measurement and Exclusive-OR Operations
-def measure_xor_operations(qc, shared_key, N):
-    # Measure and perform XOR operations
-    measured_bits = ''
-    for qubit in range(N):
-        if shared_key[qubit] == '0':
-            qc.measure((0, qubit), (0, qubit))
-        elif shared_key[qubit] == '1':
-            qc.measure((0, qubit + N), (0, qubit))
-        measured_bits += shared_key[qubit]
-    return qc, measured_bits
+def convert_to_bits(circuits):
+    measured_circuits = ""
+    for qc in circuits:
+        chosen_outcome = measure_circuit(qc)
+        measured_circuits = measured_circuits + chosen_outcome
+    return measured_circuits
 
 
+def measure_circuit(qc):
+    simulator = BasicAer.get_backend('qasm_simulator')
+    job = execute(qc, simulator, shots=1000)
+    result = job.result()
+    counts = result.get_counts(qc)
+    # print(qc.draw())
+    # print(list(counts.keys()))
+    return list(counts.keys())[0]
 
-# Check for eavesdropping
-def check_eavesdropping(shared_key, measured_bits):
-    errors = sum([shared_key[i] != measured_bits[i] for i in range(len(shared_key))])
-    error_rate = errors / len(shared_key)
-    return error_rate
+def generate_random_decoy_states_circuits(N):
+    circuits = []
+    for _ in range(N):
+        qc = QuantumCircuit(1)
+        # Apply random gates
+        state = random.choice(['0', '1', '+', '-'])
+        if state == '0':
+            pass  # No gate needed for state |0⟩
+        elif state == '1':
+            qc.x(0)  # Apply X gate for state |1⟩
+        elif state == '+':
+            qc.h(0)  # Apply H gate for state |+⟩
+        else:
+            qc.x(0)  # Apply X gate for state |-⟩
+            qc.h(0)
+        qc.measure_all()
+        if(state == '0' or state == '1'):
+          circuits.append((qc,'Z'))
+        else:
+          circuits.append((qc,'X'))
+    return circuits
+import random
 
-# Step 4: Computation and Comparison
-def compute_comparison_results(m0, m1, N):
-    comparison_result = ''
-    for j in range(N):
-        if m0[j] == '0':
-            comparison_result += m1[j]
-            break
-        elif m0[j] == '1':
-            comparison_result += '1'
-            break
-    return comparison_result
+def random_insert_decoy(decoy, bell_states):
+    selected_positions = random.sample(range(len(bell_states)), len(decoy))
+    decoy_positions = list(zip(decoy, selected_positions))
+    decoy_positions.sort(key=lambda x: x[1])
+    for (decoy_state, basis), position in decoy_positions:
+        bell_states.insert(position, decoy_state)
+    return bell_states, decoy_positions
 
-# Step 5: Interpretation
-def interpret_results(comparison_result, measured_bits):
-    if comparison_result == '0':
-        print("Alice is wealthier") if measured_bits[0] == '0' else print("Bob is wealthier")
-    else:
-        print("Bob is wealthier") if measured_bits[0] == '0' else print("Alice is wealthier")
 
-if __name__ == "__main__":
-    # Parameters
-    N = 4  # Number of qubits
+def eaves_change(bell_states,insert_positions,name):
+  # for (decoy, basis), index in insert_positions:
+  #   print(f"Do you want to change the Bell state at index {index} for {name}?")
+  #   choice = input("Enter 'yes' to change, 'no' to keep: ").lower()
+  #   if choice == 'yes':
+  #     qc = (bell_states[index])
+  #     bell_states[index] = qc.x(0)
+  #   elif choice == 'no':
+  #     print("No changes")
+  #     break
+  return bell_states
 
-    # Get input from the user for A and B
-    A = int(input("Enter the value of A (integer): "))
-    B = int(input("Enter the value of B (integer): "))
+def error_check(bell_states,insert_positions):
+  total = len(insert_positions)
+  matched = 0
+  for i in (total-1,-1):
+    calculated = bell_states[insert_positions[0][1]]
+    qc = insert_positions[0][0][0]
+    # if insert_positions[0][0][1] == 'X':
+    #   qc.h(0)
+    #   calculated.h(0)
+    # qc.measure(0,0)
+    # calculated.measure(0,0)
+    # simulator = BasicAer.get_backend('qasm_simulator')
+    # job_true = execute(qc, simulator, shots=1)
+    # result_true = job_true.result()
+    # counts_true = result_true.get_counts(qc)
+    # measurement_result_true = int(list(counts_true.keys())[0])
+    # job_calculated = execute(calculated, simulator, shots=1)
+    # result_calculated = job_calculated.result()
+    # counts_calculated = result_calculated.get_counts(calculated)
+    # measurement_result_calculated = int(list(counts_calculated.keys())[0])
+    # if measurement_result_calculated == measurement_result_true:
+    #   matched = matched +1
+    # else:
+    #   print(qc.draw())
+    # print(qc.draw())
+    # print(calculated.draw())
+    if qc == calculated:
+      matched = matched +1
+  return (1-(matched/total))
 
-    # Step 0: Key Generation
-    KA = generate_shared_key(N)
-    KB = generate_shared_key(N)
+def remove_decoy(bell_states,insert_positions):
+  total = len(insert_positions)
+  for i in (total-1,-1):
+    del bell_states[insert_positions[0][1]]
+  return bell_states
 
-    # Step 1: Bell State Generation and Photon Insertion
-    qc = generate_bell_states(N)
-    qc = insert_decoy_photons(qc, N)
+def calculate_encoded(quantity,key,TPV):
+  final = ""
+  for i in range(0,len(TPV)):
+    final = final + str(int(quantity[i])+int(key[i])+int(TPV[i]))
+  return final
 
-    # Step 3: Measurement and Exclusive-OR Operations
-    qc, measured_bits = measure_xor_operations(qc, KA, N)
+def calculate_encoded_2(quantity,key):
+  final = ""
+  for i in range(0,len(quantity)):
+    final = final + str(int(quantity[i])+int(key[i]))
+  return final
 
-    # Execute the circuit
-    backend = BasicAer.get_backend('qasm_simulator')
-    job = execute(qc, backend, shots=1)
-    counts = job.result().get_counts()
-    print("Measured bits:", measured_bits)
-    print("Measurement outcome:", list(counts.keys())[0])
 
-    # Check for eavesdropping
-    error_rate = check_eavesdropping(KA, measured_bits)
-    print("error rate = ",error_rate)
-    if error_rate > 0.1:  # Arbitrary threshold for error rate
-        print("Eavesdropping detected!")
-    else:
-        print("No eavesdropping detected.")
+# size = random.randint(4, 10)
+size = 4
+Alice = generate_random_binary(size)
+bob = generate_random_binary(size)
+TP_generated_bell_states = generate_random_bell_circuits(size)
+BA,BB = divide_bell_circuits(TP_generated_bell_states)
+maxi = (size)//2
+decoy_size = random.randint(2,maxi)
 
-    # Step 5: Interpretation
-    comparison_result = compute_comparison_results(KA, KB, N)
-    print("comparision = ",comparison_result)
-    interpret_results(comparison_result, measured_bits)
+DA = generate_random_decoy_states_circuits(decoy_size)
+SA,insert_A = random_insert_decoy(DA,BA)
+SA_1 = eaves_change(SA,insert_A,"Alice")
+errorA = error_check(SA_1,insert_A)
+# print(insert_A)
 
-    # Perform minimum operation on A and B
-    result = minimum_operation(A, B)
-    print("Result of minimum operation:", result)
+DB = generate_random_decoy_states_circuits(decoy_size)
+SB,insert_B = random_insert_decoy(DB,BB)
+SB_1 = eaves_change(SB,insert_B,"Bob")
+errorB = error_check(SB_1,insert_B)
+# print(errorA)
+# print(errorB)
+print("Error A = ",errorA)
+print("Error B = ",errorB)
+
+if errorA > 0.2 or errorB >0.2:
+  print("Termination of Protocol")
+else:
+  BA_cal = remove_decoy(SA_1,insert_A)
+  BB_cal = remove_decoy(SB_1,insert_B)
+  BA_bits = convert_to_bits(BA_cal)
+  BB_bits = convert_to_bits(BB_cal)
+  KA = generate_random_binary(size)
+  KB = generate_random_binary(size)
+  # Alice = input(f"Alice quantity of size {size} bits in binary format")
+  # Bob = input(f"Bob quantity of size {size} bits in binary format")
+  Alice = generate_random_binary(size)
+  Bob = generate_random_binary(size)
+  # Alice = "1111"
+  # Bob = "0001"
+  print(f"Alice magnitude = {Alice}")
+  print(f"Bob Magnitude = {Bob}")
+  ra_bits = calculate_encoded(Alice,KA,BA_bits)
+  # print(Alice,KA,BA_bits)
+  rb_bits = calculate_encoded(Bob,KB,BB_bits)
+  # print(ra_bits)
+  ma_bits = calculate_encoded_2(ra_bits,KA)
+  mb_bits = calculate_encoded_2(rb_bits,KB)
+  answer = bitwise_magnitude_comparison(ma_bits,mb_bits)
+  print(f"final comparision of the magnitudes {answer}")
