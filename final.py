@@ -103,15 +103,15 @@ def random_insert_decoy(decoy, bell_states):
 
 
 def eaves_change(bell_states,insert_positions,name):
-  # for (decoy, basis), index in insert_positions:
-  #   print(f"Do you want to change the Bell state at index {index} for {name}?")
-  #   choice = input("Enter 'yes' to change, 'no' to keep: ").lower()
-  #   if choice == 'yes':
-  #     qc = (bell_states[index])
-  #     bell_states[index] = qc.x(0)
-  #   elif choice == 'no':
-  #     print("No changes")
-  #     break
+  for (decoy, basis), index in insert_positions:
+    print(f"Do you want to change the Bell state at index {index} for {name}?")
+    choice = input("Enter 'yes' to change, 'no' to keep: ").lower()
+    if choice == 'yes':
+      qc = (bell_states[index])
+      bell_states[index] = qc.x(0)
+    elif choice == 'no':
+      print("No changes")
+      break
   return bell_states
 
 def error_check(bell_states,insert_positions):
@@ -170,7 +170,7 @@ bob = generate_random_binary(size)
 TP_generated_bell_states = generate_random_bell_circuits(size)
 BA,BB = divide_bell_circuits(TP_generated_bell_states)
 maxi = (size)//2
-decoy_size = random.randint(2,maxi)
+decoy_size = random.randint(1,maxi)
 
 DA = generate_random_decoy_states_circuits(decoy_size)
 SA,insert_A = random_insert_decoy(DA,BA)
