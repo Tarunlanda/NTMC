@@ -1,8 +1,9 @@
 import random
 from qiskit import QuantumCircuit, BasicAer, execute, ClassicalRegister
+from qiskit.circuit.instructionset import InstructionSet
 
 def bitwise_magnitude_comparison(a, b):
-    # Make sure both a and b have the same length
+    # Make sure both a and b nhave the same length
     if len(a) != len(b):
         if(len(a)>len(b)):
           return "Alice > Bob"
@@ -36,7 +37,7 @@ def generate_random_bell_circuits(N):
         # Apply a CNOT gate with the first qubit as control and the second qubit as target
         if random.choice([True, False]):
             qc.cx(0, 1)  # Apply a CNOT gate
-            
+
             # print('1',qc.draw())
         else:
             qc.x(1)      # Apply X gate to flip the target qubit
@@ -114,12 +115,12 @@ def eaves_change(bell_states,insert_positions,name):
       break
   return bell_states
 
-def error_check(bell_states,insert_positions):
-  total = len(insert_positions)
-  matched = 0
-  for i in (total-1,-1):
-    calculated = bell_states[insert_positions[0][1]]
-    qc = insert_positions[0][0][0]
+# def error_check(bell_states,insert_positions):
+#   total = len(insert_positions)
+#   matched = 0
+#   for i in (total-1,-1):
+#     calculated = bell_states[insert_positions[0][1]]
+#     qc = insert_positions[0][0][0]
     # if insert_positions[0][0][1] == 'X':
     #   qc.h(0)
     #   calculated.h(0)
@@ -140,9 +141,17 @@ def error_check(bell_states,insert_positions):
     #   print(qc.draw())
     # print(qc.draw())
     # print(calculated.draw())
-    if qc == calculated:
-      matched = matched +1
-  return (1-(matched/total))
+  #   if qc == calculated:
+  #     matched = matched +1
+  # return (1-(matched/total))
+
+def error_check(SA, SA_1, DA_decoy_positions):
+    total = len(DA_decoy_positions)
+    unmatched = 0
+    for qc2 in SA_1:
+      if (isinstance(qc2, InstructionSet)):
+          unmatched += 1
+    return unmatched / total
 
 def remove_decoy(bell_states,insert_positions):
   total = len(insert_positions)
@@ -175,13 +184,13 @@ decoy_size = random.randint(1,maxi)
 DA = generate_random_decoy_states_circuits(decoy_size)
 SA,insert_A = random_insert_decoy(DA,BA)
 SA_1 = eaves_change(SA,insert_A,"Alice")
-errorA = error_check(SA_1,insert_A)
+errorA = error_check(SA_1,SA,insert_A)
 # print(insert_A)
 
 DB = generate_random_decoy_states_circuits(decoy_size)
 SB,insert_B = random_insert_decoy(DB,BB)
 SB_1 = eaves_change(SB,insert_B,"Bob")
-errorB = error_check(SB_1,insert_B)
+errorB = error_check(SB_1,SB,insert_B)
 # print(errorA)
 # print(errorB)
 print("Error A = ",errorA)
