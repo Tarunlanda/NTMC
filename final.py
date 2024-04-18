@@ -34,14 +34,14 @@ def generate_random_bell_circuits(N):
     for _ in range(N):
         qc = QuantumCircuit(2,2)
         qc.h(0)
+        qc.x(1)
         # Apply a CNOT gate with the first qubit as control and the second qubit as target
         if random.choice([True, False]):
             qc.cx(0, 1)  # Apply a CNOT gate
-
-            # print('1',qc.draw())
         else:
-            qc.x(1)      # Apply X gate to flip the target qubit
-            qc.cx(0, 1)  # Apply a CNOT gate
+            qc.z(0) 
+            qc.z(1)      
+            qc.cx(0, 1)  
             # print('2',qc.draw())
         bell_circuits.append(qc)
     return bell_circuits
